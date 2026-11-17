@@ -5,6 +5,7 @@ import { hashPassword, passwordProblem, verifyPassword } from "@/lib/auth/passwo
 import { sys } from "@/lib/db";
 import { ApiError } from "@/lib/api";
 import { audit } from "@/lib/audit";
+import { clearSessionCookie } from "@/lib/services/auth";
 
 async function profile(q: any, uid: string) {
   const r = await q.query(
@@ -69,6 +70,18 @@ export const PUT = api(
     await sys("delete from sessions where user_id = $1 and id <> $2", [user.id, user.sessionId]);
     await audit(user, "auth.password_changed", "user", user.id, {}, ip);
     return { ok: true, message: "Password changed. Other devices were signed out." };
+  }
+);
+
+// Delete my account and everything attached to it (assessments, recordings, bookings, chats). Customers only; needs the password.
+export const DELETE = api(
+  { auth: ["customer"], schema: z.object({ password: z.string().min(1).max(200) }), limit: { name: "delacct", max: 5, windowSec: 3600 } },
+  async ({ user, body, ip }) => {
+    const r = await sys<{ password_hash: string }>("select password_hash from users where id = $1", [user.id]);
+    if (!(await verifyPassword(body.password, r.rows[0].password_hash))) throw new ApiError(400, "That password is not correct.", "invalid", { password: "Not correct." });
+    await audit({ id: user.id, role: user.role }, "account.deleted", "user", user.id, {}, ip); // audit rows keep no personal data
+    await sys("delete from users where id = $1", [user.id]);
+    return clearSessionCookie({ ok: true, message: "Your account and its data have been deleted." });
   }
 );
 void j;

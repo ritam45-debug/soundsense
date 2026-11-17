@@ -9,7 +9,7 @@ export default function Page() {
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const [done, setDone] = useState<null | { message: string; devLink?: string }>(null);
+  const [done, setDone] = useState<null | { message: string; devLink?: string; emailOff?: boolean }>(null);
   async function submit(e: React.FormEvent) {
     e.preventDefault(); setBusy(true); setErr("");
     try { setDone(await call("/api/auth/password", { body: { email } })); } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
@@ -18,7 +18,7 @@ export default function Page() {
     <AuthShell title="Reset your password" sub="Enter your e-mail and we'll send a link that works for 60 minutes." foot={<Link href="/login" className="font-semibold text-brand underline">Back to sign in</Link>}>
       {done ? (
         <div className="space-y-4">
-          <Notice tone="good">{done.message}</Notice>
+          <Notice tone={done.emailOff ? "warn" : "good"}>{done.message}</Notice>
           {done.devLink && <Notice tone="warn" title="Development mode">No mail server is configured: <a className="break-all font-semibold underline" href={done.devLink}>{done.devLink}</a></Notice>}
         </div>
       ) : (

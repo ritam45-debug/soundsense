@@ -1,15 +1,18 @@
 "use client";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AuthShell } from "@/components/AuthShell";
-import { Field, Notice } from "@/components/ui";
+import { Field, Notice, PasswordInput } from "@/components/ui";
 import { call, ClientError } from "@/lib/client";
 
 export default function Page() {
+  const router = useRouter();
   const [f, setF] = useState({ name: "", email: "", password: "", organisation: "", phone: "", consent: false });
   const [fields, setFields] = useState<Record<string, string>>({});
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  const [pw2, setPw2] = useState("");
   const [done, setDone] = useState<null | { message: string; devLink?: string; needsVerification: boolean }>(null);
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.type === "checkbox" ? e.target.checked : e.target.value });
 
@@ -17,7 +20,10 @@ export default function Page() {
     e.preventDefault();
     setBusy(true); setErr(""); setFields({});
     try {
-      setDone(await call("/api/auth/register", { body: { ...f, organisation: f.organisation || undefined, phone: f.phone || undefined } }));
+      if (f.password !== pw2) { setFields({ password: "The two passwords do not match." }); return; }
+      const r = await call<{ message: string; devLink?: string; needsVerification: boolean; signedIn?: boolean }>("/api/auth/register", { body: { ...f, organisation: f.organisation || undefined, phone: f.phone || undefined } });
+      if (r.signedIn) { router.replace("/app"); return; }
+      setDone(r);
     } catch (e: any) {
       setErr(e.message);
       if (e instanceof ClientError) setFields(e.fields);
@@ -40,9 +46,10 @@ export default function Page() {
       <form onSubmit={submit} className="space-y-4" noValidate>
         <Field label="Full name" htmlFor="name" error={fields.name}><input id="name" className="input" autoComplete="name" value={f.name} onChange={set("name")} required /></Field>
         <Field label="E-mail" htmlFor="email" error={fields.email}><input id="email" type="email" className="input" autoComplete="email" value={f.email} onChange={set("email")} required /></Field>
-        <Field label="Password" htmlFor="pw" error={fields.password} hint="At least 10 characters, with a letter and a number.">
-          <input id="pw" type="password" className="input" autoComplete="new-password" value={f.password} onChange={set("password")} required />
+        <Field label="Password" htmlFor="pw" error={fields.password}>
+          <PasswordInput id="pw" value={f.password} onChange={(v) => setF({ ...f, password: v })} autoComplete="new-password" showRules />
         </Field>
+        <Field label="Repeat password" htmlFor="pw2"><PasswordInput id="pw2" value={pw2} onChange={setPw2} autoComplete="new-password" /></Field>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Organisation (optional)" htmlFor="org"><input id="org" className="input" autoComplete="organization" value={f.organisation} onChange={set("organisation")} /></Field>
           <Field label="Phone (optional)" htmlFor="ph" error={fields.phone}><input id="ph" type="tel" className="input" autoComplete="tel" value={f.phone} onChange={set("phone")} /></Field>

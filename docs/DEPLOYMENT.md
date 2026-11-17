@@ -20,8 +20,8 @@ See `.env.example` for every variable with comments. The ones that **must** be s
 | `DATABASE_URL` | e.g. Supabase *pooler* URI (port 6543, transaction mode) on serverless, direct URI for migrations |
 | `DATABASE_SSL` | `true` (default). The pool uses TLS with `rejectUnauthorized: false` so managed providers' certificates work; pin the CA if your policy requires it |
 | `SESSION_SECRET` | 32+ random chars (`openssl rand -base64 48`). The app **refuses to start** in production without it |
-| `APP_URL` | Public https URL, used in e-mail links |
-| `REQUIRE_EMAIL_VERIFICATION` | keep `true` |
+| `APP_URL` | Public https URL, used in e-mail links. On Netlify it defaults to the site URL |
+| `REQUIRE_EMAIL_VERIFICATION` | Leave unset. It then follows `SMTP_HOST`: verification is **on** when a mail server is configured and **off** when not (a link nobody can receive would lock everyone out). Set `true`/`false` only to force it |
 | `SMTP_HOST` `SMTP_PORT` `SMTP_USER` `SMTP_PASS` `MAIL_FROM` | Without `SMTP_HOST`, e-mails are only printed to the server log — users could not verify their address |
 | `ANTHROPIC_API_KEY` `ANTHROPIC_MODEL` | Optional; server-side only |
 | `ADMIN_EMAIL` `ADMIN_PASSWORD` | Used once by `npm run db:seed` to create the first administrator |
@@ -83,3 +83,19 @@ Set `AUTO_MIGRATE=true` only if you want the app to migrate itself at first conn
 - **Sessions** last 7 days and are revocable (deactivating a user ends their sessions).
 - **Logs:** unexpected errors are logged to stdout; there is no external error tracker configured — add Sentry or similar if needed.
 - **PWA:** the service worker caches the app shell only and never `/api/` responses, so a stale cache cannot show another user's data.
+
+## Netlify
+
+`netlify.toml` is in the repo. Netlify runs the Next.js app on serverless functions, so there is **no persistent disk** — you must supply a PostgreSQL database (the app now stops with a clear message if `DATABASE_URL` is missing on Netlify instead of silently using a throw-away database).
+
+1. Create the database (Supabase is fine) and copy its **Transaction pooler** connection string (port 6543).
+2. Netlify → *Add new site → Import from Git* → choose this repository. Build settings come from `netlify.toml`.
+3. *Site configuration → Environment variables*, add:
+   `DATABASE_URL`, `SESSION_SECRET` (32+ random characters), `DATABASE_POOL_MAX=1`, and `AUTO_MIGRATE=true` for the first deploy (creates the tables on the first request; you can remove it afterwards).
+4. Deploy. Create the first administrator once from any machine that can reach the database: `DATABASE_URL=… ADMIN_EMAIL=… ADMIN_PASSWORD=… npm run db:seed`.
+5. Sign-up works immediately with no mail server: new customers are signed in on registration. When you later add `SMTP_*`, verification and reset e-mails switch on by themselves.
+
+**Password help without e-mail.** If someone forgets their password and the site cannot send e-mail, an administrator opens *Admin → Customers & staff → Reset link*, copies the one-time link (valid 60 minutes) and sends it to that person.
+
+**Not verified:** this Netlify setup was written from Netlify's documentation and tested only as a local production build; no live Netlify deploy was made from this session.
+

@@ -2,7 +2,7 @@
   "name": "soundsense",
   "version": "1.0.0",
   "private": true,
-  "description": "SoundSense – Smart Acoustic Assessment, Diagnosis & Consultation Platform",
+  "description": "SoundSense \u2013 Smart Acoustic Assessment, Diagnosis & Consultation Platform",
   "type": "module",
   "scripts": {
     "dev": "next dev",
@@ -14,7 +14,8 @@
     "db:reset": "tsx scripts/reset-local.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "tsx e2e/run.ts"
+    "test:e2e": "tsx e2e/run.ts",
+    "test:e2e:account": "tsx e2e/account.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.16",

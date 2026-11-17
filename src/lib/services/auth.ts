@@ -6,7 +6,7 @@ import { COOKIE_NAME, cookieOptions, createSession } from "../auth/session";
 import { consumeToken, issueToken } from "../auth/tokens";
 import { mailReset, mailVerify, sendMail, verifyLink } from "../mail";
 import { audit } from "../audit";
-import { isProd, requireEmailVerification } from "../env";
+import { isProd, mailConfigured, requireEmailVerification } from "../env";
 
 export interface RegisterInput {
   name: string;
@@ -23,13 +23,18 @@ export async function registerUser(input: RegisterInput, ip: string) {
 
   const existing = await sys<{ id: string; name: string }>("select id, name from users where lower(email) = $1", [email]);
   if (existing.rows[0]) {
-    // Do not reveal that the address is registered; tell the owner by e-mail instead.
+    // With a mail server we do not reveal that the address is registered; we tell the owner by e-mail instead.
+    // Without one there is no private channel, so say so plainly rather than pretend an account was created.
+    if (!mailConfigured()) {
+      const msg = "An account with this e-mail already exists. Sign in, or use “Forgot your password?”.";
+      throw new ApiError(409, msg, "exists", { email: msg });
+    }
     await sendMail({
       to: email,
       subject: "You already have a SoundSense account",
       text: `Hi ${existing.rows[0].name},\n\nSomeone (hopefully you) tried to register with this address. You already have an account – sign in, or reset your password if you have forgotten it.\n\nSoundSense`,
     });
-    return { devLink: undefined as string | undefined, needsVerification: requireEmailVerification() };
+    return { devLink: undefined as string | undefined, needsVerification: requireEmailVerification(), userId: undefined as string | undefined };
   }
 
   const verified = !requireEmailVerification();
@@ -55,7 +60,7 @@ export async function registerUser(input: RegisterInput, ip: string) {
     const sent = await sendMail(mail);
     if (sent.mode === "console" && !isProd()) devLink = verifyLink(token);
   }
-  return { devLink, needsVerification: !verified };
+  return { devLink, needsVerification: !verified, userId: user.id as string | undefined };
 }
 
 export async function loginUser(emailRaw: string, password: string, ip: string, ua: string | null) {

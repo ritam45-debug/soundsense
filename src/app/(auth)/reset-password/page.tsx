@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { AuthShell } from "@/components/AuthShell";
-import { Field, Notice } from "@/components/ui";
+import { Field, Notice, PasswordInput } from "@/components/ui";
 import { call } from "@/lib/client";
 
 function Form() {
@@ -23,8 +23,8 @@ function Form() {
   return (
     <AuthShell title="Choose a new password" sub="You will be signed out of all other devices.">
       <form onSubmit={submit} className="space-y-4" noValidate>
-        <Field label="New password" htmlFor="pw" hint="At least 10 characters, with a letter and a number."><input id="pw" type="password" className="input" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} required /></Field>
-        <Field label="Repeat new password" htmlFor="pw2"><input id="pw2" type="password" className="input" autoComplete="new-password" value={pw2} onChange={(e) => setPw2(e.target.value)} required /></Field>
+        <Field label="New password" htmlFor="pw"><PasswordInput id="pw" value={pw} onChange={setPw} autoComplete="new-password" showRules /></Field>
+        <Field label="Repeat new password" htmlFor="pw2"><PasswordInput id="pw2" value={pw2} onChange={setPw2} autoComplete="new-password" /></Field>
         {err && <p className="err" role="alert">{err}</p>}
         <button className="btn-primary w-full" disabled={busy}>{busy ? "Saving…" : "Update password"}</button>
       </form>

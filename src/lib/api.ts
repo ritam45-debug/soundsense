@@ -30,7 +30,10 @@ export interface PublicCtx<B = unknown> extends Omit<Ctx<B>, "user" | "db"> {
 }
 
 export const clientIp = (req: NextRequest) =>
-  req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "local";
+  req.headers.get("x-nf-client-connection-ip") || // set by Netlify's edge, not by the client
+  req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+  req.headers.get("x-real-ip") ||
+  "local";
 
 function zodFields(issues: { path: PropertyKey[]; message: string }[]) {
   const f: Record<string, string> = {};
@@ -65,10 +68,12 @@ export function api<B = unknown>(opts: Opts<B>, handler: (c: Ctx<B>) => Promise<
       if (!["GET", "HEAD", "OPTIONS"].includes(method)) {
         const origin = req.headers.get("origin");
         const host = req.headers.get("host");
+        const fwdHost = req.headers.get("x-forwarded-host")?.split(",")[0]?.trim(); // hosts behind a CDN/proxy (Netlify, Vercel)
         if (origin && host) {
           let ok = false;
           try {
-            ok = new URL(origin).host === host;
+            const oh = new URL(origin).host;
+            ok = oh === host || (!!fwdHost && oh === fwdHost);
           } catch {}
           if (!ok) throw new ApiError(403, "Cross-origin request blocked.", "csrf");
         }

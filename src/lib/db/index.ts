@@ -98,6 +98,8 @@ export function getDb(): Promise<Db> {
   if (!g.__ssDb) {
     g.__ssDb = (async () => {
       const url = process.env.DATABASE_URL?.trim();
+      if (!url && process.env.NODE_ENV === "production" && (process.env.NETLIFY || process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME))
+        throw new Error("DATABASE_URL is not set. Serverless hosting has no persistent disk, so SoundSense needs a PostgreSQL database (e.g. Supabase). Add DATABASE_URL in your host's environment variables and redeploy.");
       const db = url ? await createPg(url) : await createPglite();
       if (db.kind === "pglite" || process.env.AUTO_MIGRATE === "true") {
         const { migrate } = await import("./migrate");

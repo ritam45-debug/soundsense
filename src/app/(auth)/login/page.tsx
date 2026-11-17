@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { AuthShell } from "@/components/AuthShell";
-import { Field, Notice } from "@/components/ui";
+import { Field, Notice, PasswordInput } from "@/components/ui";
 import { call, ClientError } from "@/lib/client";
 
 function Form() {
@@ -40,7 +40,7 @@ function Form() {
       {sp.get("reset") && <div className="mb-4"><Notice tone="good">Password updated. Sign in with your new password.</Notice></div>}
       <form onSubmit={submit} className="space-y-4" noValidate>
         <Field label="E-mail" htmlFor="email"><input id="email" className="input" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
-        <Field label="Password" htmlFor="pw"><input id="pw" className="input" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} /></Field>
+        <Field label="Password" htmlFor="pw"><PasswordInput id="pw" value={password} onChange={setPassword} autoComplete="current-password" /></Field>
         {err && <p className="err" role="alert">{err}</p>}
         {needsVerify && <button type="button" className="text-sm font-semibold text-brand underline" onClick={resend}>Send the verification e-mail again</button>}
         {info && <p className="text-sm text-muted break-words">{info}</p>}

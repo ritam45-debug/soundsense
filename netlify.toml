@@ -1,0 +1,20 @@
+# Netlify deploy settings for SoundSense (Next.js 15, server-rendered).
+# Netlify detects Next.js and runs it on its serverless runtime; the plugin line makes that explicit.
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
+  # Not a secret. Keeps Next from phoning home during builds.
+  NEXT_TELEMETRY_DISABLED = "1"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+# Required environment variables (set them in Site configuration → Environment variables, not in this file):
+#   DATABASE_URL    PostgreSQL connection string, e.g. Supabase "Transaction pooler" (port 6543)
+#   SESSION_SECRET  32+ random characters
+#   AUTO_MIGRATE    "true" on the first deploy so the tables are created on first request
+#   DATABASE_POOL_MAX  "1" (each serverless function instance should hold one connection)
+# Optional: APP_URL (defaults to Netlify's URL), SMTP_*, MAIL_FROM, ANTHROPIC_API_KEY.

@@ -1,6 +1,6 @@
 "use client";
 import { createContext, ReactNode, useCallback, useContext, useEffect, useId, useRef, useState } from "react";
-import { AlertTriangle, CheckCircle2, Info, Loader2, X } from "lucide-react";
+import { AlertTriangle, Check, CheckCircle2, Eye, EyeOff, Info, Loader2, X } from "lucide-react";
 
 export function Spinner({ label = "Loading…" }: { label?: string }) {
   return (
@@ -169,5 +169,37 @@ export function Confirm({ open, title, children, confirmLabel = "Confirm", dange
         <button className={danger ? "btn-danger" : "btn-primary"} disabled={busy} onClick={onConfirm}>{busy ? "Working…" : confirmLabel}</button>
       </div>
     </Modal>
+  );
+}
+
+/** Rules shown next to a new-password field. Mirrors passwordProblem() on the server, which stays the source of truth. */
+export const passwordRules = (pw: string) => [
+  { ok: pw.length >= 10, label: "At least 10 characters" },
+  { ok: /[A-Za-z]/.test(pw), label: "A letter" },
+  { ok: /\d/.test(pw), label: "A number" },
+];
+
+/** Password field with a show/hide button and, for new passwords, a live checklist. */
+export function PasswordInput({ id, value, onChange, autoComplete, showRules, required = true }: { id: string; value: string; onChange: (v: string) => void; autoComplete: "current-password" | "new-password"; showRules?: boolean; required?: boolean }) {
+  const [show, setShow] = useState(false);
+  const rules = passwordRules(value);
+  return (
+    <div>
+      <div className="relative">
+        <input id={id} type={show ? "text" : "password"} className="input !pr-12" autoComplete={autoComplete} value={value} onChange={(e) => onChange(e.target.value)} required={required} aria-describedby={showRules ? `${id}-rules` : undefined} />
+        <button type="button" onClick={() => setShow(!show)} aria-pressed={show} aria-label={show ? "Hide password" : "Show password"} className="absolute right-1 top-1 flex h-10 w-10 items-center justify-center rounded-md text-muted hover:text-ink focus-visible:outline focus-visible:outline-2">
+          {show ? <EyeOff className="h-4 w-4" aria-hidden /> : <Eye className="h-4 w-4" aria-hidden />}
+        </button>
+      </div>
+      {showRules && (
+        <ul id={`${id}-rules`} className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+          {rules.map((r) => (
+            <li key={r.label} className={r.ok ? "text-good" : "text-muted"}>
+              <Check className={`mr-1 inline h-3 w-3 ${r.ok ? "" : "opacity-30"}`} aria-hidden />{r.label}<span className="sr-only">{r.ok ? " – done" : " – not yet"}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
