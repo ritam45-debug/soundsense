@@ -53,7 +53,7 @@ export default function Home() {
       </section>
 
       <section className="mx-auto max-w-6xl px-4 pb-4 sm:px-6">
-        <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-brand-soft p-8"><div><h2 className="font-display text-2xl font-semibold">Find out what is really wrong with the sound.</h2><p className="mt-1 text-muted">Free to start. Takes about ten minutes.</p></div><Link href="/app/assessments/new" className="btn-primary">Create your account <FileText className="h-4 w-4" /></Link></div>
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-brand-soft p-8"><div><h2 className="font-display text-2xl font-semibold">Find out what is really wrong with the sound.</h2><p className="mt-1 text-muted">Free to start. Takes about ten minutes.</p></div><Link href="/app/assessments/new" className="btn-primary">Start a free assessment <FileText className="h-4 w-4" /></Link></div>
       </section>
     </PublicShell>
   );
