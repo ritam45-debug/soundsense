@@ -1,0 +1,8 @@
+# Netlify: set "Base directory" to lite (or drop the lite/out folder on https://app.netlify.com/drop after building).
+[build]
+  base = "lite"
+  command = "npm run build"
+  publish = "out"
+
+[build.environment]
+  NODE_VERSION = "22"

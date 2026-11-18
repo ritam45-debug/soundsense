@@ -37,11 +37,11 @@ export function RoomCalculator({ environment, initial, assessmentId, onSaved }: 
     setSaving(true);
     try { await call(`/api/assessments/${assessmentId}/room`, { method: "PUT", body: r }); toast("Room details saved."); onSaved?.(); } catch (e: any) { toast(e.message, "bad"); } finally { setSaving(false); }
   }
-  const sel = (k: "floor_material" | "wall_material" | "ceiling_material", list: { value: string; label: string }[]) => (
-    <select className="input" value={r[k]} onChange={(e) => setR({ ...r, [k]: e.target.value })}>{list.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}</select>
+  const sel = (k: "floor_material" | "wall_material" | "ceiling_material", list: { value: string; label: string }[], name: string) => (
+    <select className="input" aria-label={name} value={r[k]} onChange={(e) => setR({ ...r, [k]: e.target.value })}>{list.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}</select>
   );
-  const pick = <K extends "glass_share" | "soft_furnishings" | "panels">(k: K, opts: [RoomInput[K], string][]) => (
-    <select className="input" value={r[k]} onChange={(e) => setR({ ...r, [k]: e.target.value as RoomInput[K] })}>{opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
+  const pick = <K extends "glass_share" | "soft_furnishings" | "panels">(k: K, opts: [RoomInput[K], string][], name: string) => (
+    <select className="input" aria-label={name} value={r[k]} onChange={(e) => setR({ ...r, [k]: e.target.value as RoomInput[K] })}>{opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
   );
 
   return (
@@ -53,13 +53,13 @@ export function RoomCalculator({ environment, initial, assessmentId, onSaved }: 
           <Field label="Height (m)" htmlFor="rh"><input id="rh" {...num("height_m", 1.5, 40)} /></Field>
         </div>
         <Field label="Typical number of people" htmlFor="ro"><input id="ro" {...num("occupants", 0, 5000)} /></Field>
-        <Field label="Floor"><>{sel("floor_material", FLOOR_MATERIALS)}</></Field>
-        <Field label="Walls"><>{sel("wall_material", WALL_MATERIALS)}</></Field>
-        <Field label="Ceiling"><>{sel("ceiling_material", CEILING_MATERIALS)}</></Field>
+        <Field label="Floor"><>{sel("floor_material", FLOOR_MATERIALS, "Floor")}</></Field>
+        <Field label="Walls"><>{sel("wall_material", WALL_MATERIALS, "Walls")}</></Field>
+        <Field label="Ceiling"><>{sel("ceiling_material", CEILING_MATERIALS, "Ceiling")}</></Field>
         <div className="grid gap-3 sm:grid-cols-3">
-          <Field label="Glass"><>{pick("glass_share", [["none", "None"], ["some", "Some windows"], ["large", "Large glass areas"]])}</></Field>
-          <Field label="Curtains / soft items"><>{pick("soft_furnishings", [["none", "None"], ["some", "Some"], ["lots", "A lot"]])}</></Field>
-          <Field label="Acoustic panels"><>{pick("panels", [["none", "None"], ["some", "Some"], ["extensive", "Extensive"]])}</></Field>
+          <Field label="Glass"><>{pick("glass_share", [["none", "None"], ["some", "Some windows"], ["large", "Large glass areas"]], "Glass")}</></Field>
+          <Field label="Curtains / soft items"><>{pick("soft_furnishings", [["none", "None"], ["some", "Some"], ["lots", "A lot"]], "Curtains and soft items")}</></Field>
+          <Field label="Acoustic panels"><>{pick("panels", [["none", "None"], ["some", "Some"], ["extensive", "Extensive"]], "Acoustic panels")}</></Field>
         </div>
         {assessmentId && <button type="button" className="btn-primary" onClick={save} disabled={saving || !a}>{saving ? "Saving…" : "Save room details to this assessment"}</button>}
       </div>

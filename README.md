@@ -1,5 +1,10 @@
 # SoundSense — Making Every Sound Count
 
+> **Two editions in this repository**
+> - **Full platform** (this folder, branch `full-version` keeps a frozen copy): accounts, consultants, bookings, admin, PostgreSQL. Needs a server.
+> - **SoundSense Lite** (`lite/`): no login, no server – a static site that runs in the browser and keeps data on the device. Easy to test and to host on GitHub Pages. See [`lite/README.md`](lite/README.md).
+
+
 Smart acoustic assessment, diagnosis and consultation platform (CPP International Project, GLIM Chennai).
 
 > **Diagnose first. Recommend second. Sell last.**
