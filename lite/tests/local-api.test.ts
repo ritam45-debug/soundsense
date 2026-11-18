@@ -111,10 +111,18 @@ describe("assessment lifecycle (all in the browser)", () => {
     expect((await fails(call("GET", "/api/admin/users"))).status).toBe(404);
   });
 
+  it("assistant replies are short: at most 75 words for every topic, including the follow-up question", async () => {
+    const prompts = ["echo in my room", "what is rt60 reverb", "background noise and ac hum", "the microphone is too quiet", "speaker volume and feedback", "bluetooth keeps disconnecting", "hybrid meeting with zoom", "do I need acoustic panels or soundproofing", "which equipment should I buy and what is the price", "how do I measure decibels", "hello", "tell me a joke"];
+    for (const m of prompts) {
+      const words = (await call("POST", "/api/chat", { message: m })).reply.content.trim().split(/\s+/).length;
+      expect(words, m).toBeLessThanOrEqual(75);
+    }
+  });
+
   it("the assistant answers from the built-in knowledge base and never claims to be AI or a person", async () => {
     const r = await call("POST", "/api/chat", { message: "my room has a lot of echo" });
-    expect(r.reply.content).toMatch(/Echo has two very different causes/);
-    expect(r.reply.content).toMatch(/rule-based/);
+    expect(r.reply.content).toMatch(/Two causes/);
+    expect(r.reply.source).toBe("fallback"); // the UI labels this "rule-based, not AI"
     const h = await call("POST", "/api/chat", { message: "can I talk to a human consultant?" });
     expect(h.reply.content).toMatch(/no live consultants/);
     expect((await fails(call("POST", "/api/chat", { message: "  " }))).status).toBe(400);

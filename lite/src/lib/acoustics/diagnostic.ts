@@ -50,7 +50,9 @@ const onlineMode = (f: Facts) => is(f, "q5_mode", "online", "both");
 
 export const RULES: Rule[] = [
   // ── Room acoustics ───────────────────────────────────────────────
-  { id: "R-ROOM-ECHO", label: "Echo reported", basis: "reported", effects: { room: 1.5, conference: 1.5, hybrid: 1 }, when: (f) => p(f, "echo"), evidence: () => "Customer reports echo." },
+  { id: "R-ROOM-ECHO", label: "Echo reported", basis: "reported", effects: { room: 1.5 }, when: (f) => p(f, "echo"), evidence: () => "Customer reports echo." },
+  // Conferencing systems can only cause echo when remote participants exist, so this is skipped for in-person-only spaces.
+  { id: "R-CONF-ECHO-ONLINE", label: "Echo in a meeting with remote participants", basis: "reported", effects: { conference: 1.5, hybrid: 1 }, when: (f) => p(f, "echo") && onlineMode(f), evidence: () => "Echo is reported in meetings that include remote participants, so the conferencing set-up (echo cancellation, open devices) is a candidate as well as the room." },
   { id: "R-ROOM-REVERB", label: "Reverberation reported", basis: "reported", effects: { room: 3 }, when: (f) => p(f, "reverb"), evidence: () => "Customer reports reverberation (hollow / lingering sound)." },
   { id: "R-ROOM-CLAP-LONG", label: "Clap test rings", basis: "reported", effects: { room: 3 }, when: (f) => is(f, "f_clap", "lingers"), evidence: () => "A clap in the room leaves an audible ring/tail." },
   { id: "R-ROOM-CLAP-SHORT", label: "Clap test is dry", basis: "reported", effects: { room: -2.5 }, when: (f) => is(f, "f_clap", "short"), evidence: () => "A clap sounds short and dry, which argues against a reverberant room." },
@@ -61,6 +63,22 @@ export const RULES: Rule[] = [
     effects: { room: 3.5 },
     when: (f) => !!f.room && f.room.ratio > 1.3,
     evidence: (f) => `Sabine estimate RT60 ≈ ${f.room!.rt60Unoccupied} s vs ≈ ${f.room!.target} s target (${f.room!.ratio}× target).`,
+  },
+  {
+    id: "R-ROOM-RT60-SEVERE",
+    label: "Estimated RT60 more than double the target",
+    basis: "calculated",
+    effects: { room: 1.5 },
+    when: (f) => !!f.room && f.room.ratio > 2,
+    evidence: (f) => `The estimate is ${f.room!.ratio}× the target, far enough above it that the room is very likely a major contributor even allowing for the error in a screening estimate.`,
+  },
+  {
+    id: "R-ROOM-OCC-OK",
+    label: "People in the room bring RT60 within target",
+    basis: "calculated",
+    effects: { room: -1 },
+    when: (f) => !!f.room && f.occupants !== null && f.occupants >= 10 && f.room.ratio > 1.0 && f.room.rt60Occupied <= f.room.target,
+    evidence: (f) => `The empty-room estimate (≈ ${f.room!.rt60Unoccupied} s) is above target, but with about ${f.occupants} people the estimate falls to ≈ ${f.room!.rt60Occupied} s, within the ≈ ${f.room!.target} s target. Check whether the problem occurs when the room is full.`,
   },
   {
     id: "R-ROOM-RT60-MID",
@@ -119,7 +137,8 @@ export const RULES: Rule[] = [
     when: (f) => is(f, "f_echo_remote", "no") && p(f, "echo", "reverb"),
     evidence: () => "Remote participants do not hear themselves back, so the echo is more likely produced by the room.",
   },
-  { id: "R-FEEDBACK", label: "Whistling / feedback", basis: "reported", effects: { speaker: 2, conference: 2, room: 1 }, when: (f) => p(f, "feedback"), evidence: () => "Customer reports squeal/feedback when microphones are open (gain-structure or speaker–mic coupling)." },
+  { id: "R-FEEDBACK", label: "Whistling / feedback", basis: "reported", effects: { speaker: 2, room: 1 }, when: (f) => p(f, "feedback"), evidence: () => "Customer reports squeal/feedback when microphones are open (gain-structure or speaker–mic coupling)." },
+  { id: "R-CONF-FEEDBACK-ONLINE", label: "Feedback in a conferencing set-up", basis: "reported", effects: { conference: 2 }, when: (f) => p(f, "feedback") && onlineMode(f), evidence: () => "Feedback with a conferencing system usually means microphone and speaker gain or placement in the room system needs tuning." },
   // ── Microphone ───────────────────────────────────────────────────
   { id: "R-MIC-PICKUP", label: "Poor microphone pickup", basis: "reported", effects: { microphone: 3 }, when: (f) => p(f, "poor_mic_pickup"), evidence: () => "Customer reports people are too quiet or cut out." },
   { id: "R-MIC-DIST", label: "Talkers are far from the microphone", basis: "reported", effects: { microphone: 2 }, when: (f) => is(f, "f_mic_distance", "3_6", "gt6"), evidence: (f) => `Farthest talker is ${f.a.f_mic_distance === "gt6" ? "over 6 m" : "3 – 6 m"} from the microphone.` },
@@ -134,6 +153,22 @@ export const RULES: Rule[] = [
   },
   { id: "R-MIC-QUIET-OK-PICKUP", label: "Clear when quiet (pickup)", basis: "reported", effects: { microphone: 1 }, when: (f) => is(f, "f_quiet_ok", "yes") && p(f, "poor_mic_pickup"), evidence: () => "Audio is clear in a quiet room, so the device works – placement/directionality or noise handling is the issue." },
   { id: "R-MIC-RETRY", label: "New microphone didn't solve it", basis: "reported", effects: { microphone: -1, room: 1 }, when: (f) => f.attempted.has("new_mic") && p(f, "poor_mic_pickup", "echo", "reverb", "distorted_speech"), evidence: () => "A new microphone has already been tried without fixing the problem, which points beyond the microphone itself." },
+  {
+    id: "R-MIC-CLIP",
+    label: "Speech recording is overloaded",
+    basis: "measured",
+    effects: { microphone: 1.5 },
+    when: (f) => !!f.meas?.speech && f.meas.speech.maxDb >= -3,
+    evidence: (f) => `Your speech recording reaches ${f.meas!.speech!.maxDb} dBFS (relative), essentially full scale: the input gain is too high or the talker is too close, which causes distortion.`,
+  },
+  {
+    id: "R-MIC-LOW-LEVEL",
+    label: "Speech recording is very quiet",
+    basis: "measured",
+    effects: { microphone: 1.5 },
+    when: (f) => !!f.meas?.speech && f.meas.speech.leqDb < -50,
+    evidence: (f) => `Your speech recording averages only ${f.meas!.speech!.leqDb} dBFS (relative): the microphone is far from the talker or the input gain is low. Browser microphones are uncalibrated, so treat this as a comparison, not an absolute level.`,
+  },
   // ── Background noise ─────────────────────────────────────────────
   { id: "R-NOISE-REPORTED", label: "Background noise reported", basis: "reported", effects: { noise: 3.5 }, when: (f) => p(f, "background_noise"), evidence: () => "Customer reports background noise." },
   { id: "R-NOISE-NC", label: "Noise cancellation not working", basis: "reported", effects: { noise: 2, microphone: 1 }, when: (f) => p(f, "poor_noise_cancel"), evidence: () => "Noise cancellation is not removing the noise." },
@@ -429,7 +464,8 @@ export function diagnose(f: Facts): Diagnosis {
   }
 
   // Data completeness over the key questions that were visible to this customer.
-  const keyIds = ["q2_problems", "q3_where", "q5_mode", "q9_equipment", "q4_occupants", "q13_budget"];
+  // Budget is deliberately not here: it shapes the recommendation, not the diagnosis.
+  const keyIds = ["q2_problems", "q3_where", "q5_mode", "q9_equipment", "q4_occupants"];
   const followIds = STEPS.flatMap((s) => visibleQuestions(s, f.a)).filter((q) => q.followUp).map((q) => q.id);
   const wanted = [...keyIds, ...followIds];
   const missing = wanted.filter((id) => {
@@ -477,12 +513,12 @@ export function diagnose(f: Facts): Diagnosis {
   const complexity = multiple ? "high" : primaryKnowledge[0].complexity;
   void complexityRank;
 
-  // "Not recommended" guidance: categories that scored very low are called out so we do not sell what's not needed.
-  const notRecommended: string[] = [];
-  for (const c of CATEGORY_IDS) {
-    if (!focus.includes(c) && scores[c] <= 0.5 && (c === "room" || c === "speaker")) notRecommended.push(...KNOWLEDGE[focus[0]].notHelpful);
-  }
-  const uniqNot = Array.from(new Set(notRecommended.length ? notRecommended : KNOWLEDGE[focus[0]].notHelpful));
+  // "Not recommended": what will not help the diagnosed cause(s), plus purchases the evidence argues against.
+  const notRecommended: string[] = focus.flatMap((c) => KNOWLEDGE[c].notHelpful);
+  if (!focus.includes("room") && scores.room <= 0.5) notRecommended.push("Acoustic treatment: nothing in your answers points to the room itself.");
+  if (!focus.includes("speaker") && scores.speaker <= 0.5) notRecommended.push("New speakers or amplifiers: the evidence does not point to the sound system.");
+  if (!focus.includes("microphone") && scores.microphone <= 0.5) notRecommended.push("A new microphone: the evidence does not point to the microphone.");
+  const uniqNot = Array.from(new Set(notRecommended));
 
   const solution = multiple
     ? `Tackle these in order of impact: ${focus.map((c) => KNOWLEDGE[c].solution.split(";")[0].replace(/\.$/, "")).join(" → ")}.`

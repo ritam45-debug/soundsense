@@ -7,7 +7,7 @@ import { call } from "@/lib/client";
 export interface Msg { id?: string; role: "user" | "assistant" | "system"; content: string; source?: string | null }
 const SRC: Record<string, { label: string; tone: "brand" | "warn" | "good" }> = {
   llm: { label: "AI assistant", tone: "brand" },
-  fallback: { label: "Built-in guidance", tone: "good" },
+  fallback: { label: "Built-in guidance · rule-based, not AI", tone: "good" },
   human: { label: "SoundSense consultant", tone: "good" },
 };
 const STARTERS = ["Why does my meeting room echo?", "Do I need a new microphone?", "What does RT60 mean?", "How loud is too loud for a meeting room?"];

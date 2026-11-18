@@ -192,13 +192,18 @@ function RecsTab({ full, plan, staff, refresh }: { full: any; plan: any; staff: 
       {plan?.freeFirstSteps?.length > 0 && <Notice tone="good" title="Start with the free steps on the Diagnosis tab">Most acoustic problems improve a lot without spending anything. Come back here if they are not enough.</Notice>}
       {total && total.max > 0 && (
         <div className="card flex flex-wrap items-center justify-between gap-3 p-4 text-sm">
-          <div><p className="font-semibold">Estimated cost of the best-fit option in each category</p><p className="text-muted">{formatRange(total.min, total.max)} {plan.budgetMax ? `· your budget: up to ${formatInr(plan.budgetMax)}` : ""}</p></div>
+          <div><p className="font-semibold">Estimated cost of the best-fit options for phase 1</p><p className="text-muted">{formatRange(total.min, total.max)} {plan.budgetMax ? `· your budget: up to ${formatInr(plan.budgetMax)}` : ""}</p></div>
           {plan.withinBudget !== null && <Badge tone={plan.withinBudget ? "good" : "warn"}>{plan.withinBudget ? "Within your budget" : "Above your stated budget"}</Badge>}
         </div>
       )}
       {cats.map((c) => (
         <section key={c}>
-          <h3 className="mb-3 font-display text-lg font-semibold">{CATEGORY_SHORT[c]}</h3>
+          {(() => { const pc = plan?.categories?.find((x: any) => x.category === c); const many = (plan?.categories?.length ?? 0) > 1; return (
+            <h3 className="mb-3 flex flex-wrap items-center gap-2 font-display text-lg font-semibold">{CATEGORY_SHORT[c]}
+              {many && pc?.rank === 1 && <Badge tone="good">Start here</Badge>}
+              {many && pc && pc.rank > 1 && !pc.deferred && <Badge tone="neutral">Then re-test</Badge>}
+              {pc?.deferred && <Badge tone="warn">Phase 2 – after the first fix</Badge>}
+            </h3>); })()}
           <div className="grid gap-4 lg:grid-cols-3">
             {(["budget", "recommended", "premium"] as const).map((t) => {
               const r = recs.find((x) => x.problem_category === c && x.tier === t);

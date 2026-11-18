@@ -56,6 +56,10 @@ export interface CategoryRecommendation {
   alsoConsider: RecItem[];
   bestFit: Tier;
   whyBestFit: string[];
+  /** 1 = strongest evidence. Fix the lowest rank first and re-test before spending on the rest. */
+  rank: number;
+  /** True when the budget only covers the higher-ranked fixes; this one waits until they are verified. */
+  deferred: boolean;
 }
 
 export interface RecommendationSet {
@@ -85,10 +89,10 @@ function suitabilityScore(p: ProductRow, env: string, occupants: number | null):
   if (occupants !== null) {
     if (s.minOccupants !== undefined && occupants < s.minOccupants) {
       score -= 2;
-      notes.push(`sized for at least ${s.minOccupants} people`);
+      notes.push(`designed for at least ${s.minOccupants} people, so it may be more than a room of ${occupants} needs`);
     } else if (s.maxOccupants !== undefined && occupants > s.maxOccupants) {
       score -= 3;
-      notes.push(`covers up to about ${s.maxOccupants} people`);
+      notes.push(`covers up to about ${s.maxOccupants} people, so it may be undersized for ${occupants}`);
     } else if (s.minOccupants !== undefined || s.maxOccupants !== undefined) {
       score += 2;
       notes.push(`suits about ${occupants} people`);
@@ -145,8 +149,9 @@ export function recommend(d: Diagnosis, answers: Answers, catalogue: ProductRow[
       items[tier] = toItem(candidates[0].p, candidates[0].notes);
       if (tier !== "premium") for (const extra of candidates.slice(1, 2)) if (extra.score >= 0) alsoConsider.push(toItem(extra.p, extra.notes));
     }
-    return { category, label: CATEGORY_SHORT[category], items, alsoConsider, bestFit: "recommended", whyBestFit: [] };
+    return { category, label: CATEGORY_SHORT[category], items, alsoConsider, bestFit: "recommended", whyBestFit: [], rank: 0, deferred: false };
   });
+  categories.forEach((c, i) => (c.rank = i + 1));
 
   // ── choose best-fit tier per category ──
   const lowConfidence = d.confidenceLevel === "low";
@@ -169,14 +174,24 @@ export function recommend(d: Diagnosis, answers: Answers, catalogue: ProductRow[
     c.whyBestFit = why;
   }
 
-  // Fit the whole plan into the stated budget (lower the least-important categories first).
-  const total = () => categories.reduce((s, c) => s + (c.items[c.bestFit]?.priceMin ?? 0), 0);
+  // Fit the whole plan into the stated budget. Step 1: lower the least-important categories to the budget tier.
+  // Step 2: if it still does not fit, defer the least-important categories to a second phase (never the top-ranked
+  // one) and say so, instead of showing a plan the budget cannot pay for.
+  const live = () => categories.filter((c) => !c.deferred);
+  const total = () => live().reduce((s, c) => s + (c.items[c.bestFit]?.priceMin ?? 0), 0);
   if (budget !== null) {
     for (let i = categories.length - 1; i >= 0 && total() > budget; i--) {
       const c = categories[i];
       if (c.bestFit === "recommended" && c.items.budget) {
         c.bestFit = "budget";
         c.whyBestFit.push(`Stepped down to the budget option so the plan fits your budget (${formatInr(budget)}).`);
+      }
+    }
+    for (let i = categories.length - 1; i >= 1 && total() > budget; i--) {
+      const c = categories[i];
+      if (c.items[c.bestFit]) {
+        c.deferred = true;
+        c.whyBestFit.push("Phase 2: left out of the total so that phase 1 fits your budget. Fix the higher-ranked cause first, repeat the assessment, and only then decide whether this is still needed.");
       }
     }
   }
@@ -186,12 +201,21 @@ export function recommend(d: Diagnosis, answers: Answers, catalogue: ProductRow[
     if (!it) continue;
     if (c.bestFit === "recommended") c.whyBestFit.push("Best balance of effectiveness and cost for the diagnosed cause – the budget option may leave part of the problem unsolved, and the premium option is best costed only after an expert inspection.");
     if (it.fitNotes.length) c.whyBestFit.push(`Suitability: ${it.fitNotes.join("; ")}.`);
-    if (budget !== null && it.priceMax <= budget) c.whyBestFit.push(`Upper estimate (${formatInr(it.priceMax)}) is within the stated budget.`);
-    if (budget !== null && it.priceMin > budget) c.whyBestFit.push(`Even the lowest estimate (${formatInr(it.priceMin)}) is above the stated budget – phase the work or review the budget with a consultant.`);
+    if (budget !== null && !c.deferred && it.priceMax <= budget) c.whyBestFit.push(`Upper estimate (${formatInr(it.priceMax)}) is within the stated budget.`);
+    if (budget !== null && !c.deferred && it.priceMin > budget) c.whyBestFit.push(`Even the lowest estimate (${formatInr(it.priceMin)}) is above the stated budget – phase the work or review the budget with a consultant.`);
   }
 
-  const min = categories.reduce((s, c) => s + (c.items[c.bestFit]?.priceMin ?? 0), 0);
-  const max = categories.reduce((s, c) => s + (c.items[c.bestFit]?.priceMax ?? 0), 0);
+  // Why this order: show the evidence behind each category so the ranking is never a black box.
+  const scoreSum = Object.values(d.scores).reduce((a, b) => a + b, 0) || 1;
+  for (const c of categories) {
+    const share = Math.round((d.scores[c.category] / scoreSum) * 100);
+    const lead = `Evidence: score ${d.scores[c.category]} (${share}% of all evidence found).`;
+    const order = categories.length < 2 ? "" : c.rank === 1 ? " Strongest cause: start here." : c.deferred ? "" : ` Ranked #${c.rank}: do this after #1 and repeat the assessment to see if it is still needed.`;
+    c.whyBestFit.unshift(lead + order);
+  }
+
+  const min = live().reduce((s, c) => s + (c.items[c.bestFit]?.priceMin ?? 0), 0);
+  const max = live().reduce((s, c) => s + (c.items[c.bestFit]?.priceMax ?? 0), 0);
   const costCategory = categories.length === 0 ? "none" : max <= 25_000 ? "low" : max <= 150_000 ? "moderate" : "high";
 
   const roadmap: RecommendationSet["roadmap"] = [
@@ -201,8 +225,10 @@ export function recommend(d: Diagnosis, answers: Answers, catalogue: ProductRow[
   roadmap.push({
     phase: d.expertInspection.needed ? "3. Implement best-fit solution" : "2. Implement best-fit solution",
     timeframe: "Weeks 2–6 (indicative)",
-    actions: categories.map((c) => c.items[c.bestFit]).filter(Boolean).map((i) => `${i!.title} (${formatRange(i!.priceMin, i!.priceMax)} – ${i!.complexity} complexity)`),
+    actions: live().map((c) => c.items[c.bestFit]).filter(Boolean).map((i) => `${i!.title} (${formatRange(i!.priceMin, i!.priceMax)} – ${i!.complexity} complexity)`),
   });
+  const later = categories.filter((c) => c.deferred).map((c) => c.items[c.bestFit]).filter(Boolean);
+  if (later.length) roadmap.push({ phase: "Later, only if still needed", timeframe: "After phase 1 is verified", actions: later.map((i) => `${i!.title} (${formatRange(i!.priceMin, i!.priceMax)})`) });
   roadmap.push({ phase: "Verify", timeframe: "After installation", actions: ["Repeat the SoundSense recording and compare relative SNR", "Ask remote participants to rate clarity", "Submit feedback so we can improve"] });
 
   return {

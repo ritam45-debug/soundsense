@@ -107,7 +107,7 @@ await check("mic measurement: live meter → stop → labelled relative → save
 });
 await check("assistant answers an echo question and says it is rule-based", async () => {
   await p.goto(U("/app/chat/")); await p.fill("#chat-in", "Why does my room echo?"); await p.getByRole("button", { name: "Send" }).click();
-  await p.waitForSelector("text=Echo has two very different causes", { timeout: 8000 });
+  await p.waitForSelector("text=Two causes", { timeout: 8000 });
   if (!/rule-based|built-in/i.test(await p.locator("main").innerText())) throw new Error("not labelled");
 });
 await check("public-page chat widget works too", async () => {
