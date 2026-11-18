@@ -25,6 +25,7 @@ export interface Settings {
   contacts: Contact[];
   captionLang: string;
 }
+export interface Supplier { id: string; name: string; email: string; phone: string; categories: string[]; sponsored: boolean; notes: string }
 export interface AuditEntry { id: string; at: string; text: string }
 export interface Workspace {
   v: 1;
@@ -32,13 +33,14 @@ export interface Workspace {
   mitigationDone: Record<string, Record<string, string>>;
   schedules: Schedule[]; goals: Goal[]; maps: Record<string, MapItem[]>; audit: AuditEntry[]; settings: Settings;
   consults: { id: string; at: string; roomId: string | null; supplierId: string | null; message: string }[];
+  suppliers: Supplier[];
   /** Latest Meeting Readiness result per room id ("" = no room). */
   readiness: Record<string, ReadinessRecord>;
 }
 export interface ReadinessRecord { at: string; verdict: "ready" | "warnings" | "attention"; micFound: boolean; speakerFound: boolean | null; speakerHeard: boolean | null; signal: boolean; clipping: boolean; feedback: boolean; noiseDb: number | null; noiseBasis: ReadingBasis; online: boolean | null; slowLink: boolean | null; echoReported: boolean; findings: string[] }
 
 export const defaultSettings = (): Settings => ({ screening: { ...DEFAULT_SCREENING, bands: [...DEFAULT_SCREENING.bands] as ScreeningConfig["bands"], urgent: { ...DEFAULT_SCREENING.urgent } }, weights: {}, notify: { inApp: true, browser: false }, contacts: [], captionLang: "en-US" });
-export const emptyWs = (): Workspace => ({ v: 1, rooms: [], readings: [], alerts: [], notifications: [], snapshots: [], mitigationDone: {}, schedules: [], goals: [], maps: {}, audit: [], settings: defaultSettings(), consults: [], readiness: {} });
+export const emptyWs = (): Workspace => ({ v: 1, rooms: [], readings: [], alerts: [], notifications: [], snapshots: [], mitigationDone: {}, schedules: [], goals: [], maps: {}, audit: [], settings: defaultSettings(), consults: [], suppliers: [], readiness: {} });
 
 /** Fill in anything an older or partial save lacks, so new fields never crash old data. */
 export function normalise(raw: any): Workspace {
@@ -49,7 +51,7 @@ export function normalise(raw: any): Workspace {
     ...base, ...raw,
     rooms: Array.isArray(raw.rooms) ? raw.rooms : [], readings: Array.isArray(raw.readings) ? raw.readings : [], alerts: Array.isArray(raw.alerts) ? raw.alerts : [],
     notifications: Array.isArray(raw.notifications) ? raw.notifications : [], snapshots: Array.isArray(raw.snapshots) ? raw.snapshots : [],
-    schedules: Array.isArray(raw.schedules) ? raw.schedules : [], goals: Array.isArray(raw.goals) ? raw.goals : [], audit: Array.isArray(raw.audit) ? raw.audit : [], consults: Array.isArray(raw.consults) ? raw.consults : [],
+    schedules: Array.isArray(raw.schedules) ? raw.schedules : [], goals: Array.isArray(raw.goals) ? raw.goals : [], audit: Array.isArray(raw.audit) ? raw.audit : [], consults: Array.isArray(raw.consults) ? raw.consults : [], suppliers: Array.isArray(raw.suppliers) ? raw.suppliers : [],
     readiness: raw.readiness && typeof raw.readiness === "object" ? raw.readiness : {},
     mitigationDone: raw.mitigationDone && typeof raw.mitigationDone === "object" ? raw.mitigationDone : {}, maps: raw.maps && typeof raw.maps === "object" ? raw.maps : {},
     settings: { ...base.settings, ...s, screening: { ...base.settings.screening, ...(s.screening ?? {}), urgent: { ...base.settings.screening.urgent, ...(s.screening?.urgent ?? {}) } }, notify: { ...base.settings.notify, ...(s.notify ?? {}) }, contacts: Array.isArray(s.contacts) ? s.contacts : [], weights: s.weights ?? {} },

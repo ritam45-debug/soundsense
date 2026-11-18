@@ -2,25 +2,43 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ReactNode, useEffect, useState } from "react";
-import { ClipboardList, Database, GraduationCap, LayoutDashboard, Menu, MessageCircle, Mic, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
+import { Award, BarChart3, Bell, Calculator, Captions, CheckSquare, ClipboardList, Database, DoorOpen, GitCompare, GraduationCap, HandHelping, LayoutDashboard, Map, Menu, MessageCircle, Mic, PanelLeftClose, PanelLeftOpen, QrCode, Radio, Settings, Sparkles, Wrench, X } from "lucide-react";
+import { useWorkspace } from "@/lib/workspace/useWorkspace";
+import { unreadCount } from "@/lib/workspace/ops";
 import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
 
-type Item = { href: string; label: string; icon: any; exact?: boolean };
+type Item = { href: string; label: string; icon: any; exact?: boolean; group?: string };
 const ITEMS: Item[] = [
   { href: "/app", label: "Dashboard", icon: LayoutDashboard, exact: true },
-  { href: "/app/assessments", label: "Assessments", icon: ClipboardList },
+  { href: "/app/monitor", label: "Live monitoring", icon: Radio, group: "Monitor" },
+  { href: "/app/rooms", label: "Rooms", icon: DoorOpen },
+  { href: "/app/notifications", label: "Alerts & notifications", icon: Bell },
+  { href: "/app/readiness", label: "Test my room", icon: CheckSquare },
+  { href: "/app/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/app/assessments", label: "Assessments & diagnosis", icon: ClipboardList, group: "Assess" },
   { href: "/app/measure", label: "Measure & calculate", icon: Mic },
-  { href: "/app/chat", label: "Assistant", icon: MessageCircle },
+  { href: "/app/mitigation", label: "Mitigation centre", icon: Wrench, group: "Improve" },
+  { href: "/app/verify", label: "Before & after", icon: GitCompare },
+  { href: "/app/goals", label: "Goals & badges", icon: Award },
+  { href: "/app/map", label: "Room map", icon: Map, group: "Plan & share" },
+  { href: "/app/passport", label: "Room passport", icon: QrCode },
+  { href: "/app/speech", label: "Captions & clarity", icon: Captions },
+  { href: "/app/roi", label: "Return on investment", icon: Calculator },
+  { href: "/app/marketplace", label: "Find help", icon: HandHelping },
+  { href: "/app/assistant", label: "Room assistant", icon: Sparkles, group: "Help" },
+  { href: "/app/chat", label: "Assessment assistant", icon: MessageCircle },
   { href: "/app/learn", label: "Learn", icon: GraduationCap },
+  { href: "/app/settings", label: "Settings", icon: Settings },
   { href: "/app/data", label: "My data", icon: Database },
 ];
-const BOTTOM = ["/app", "/app/assessments", "/app/measure", "/app/data"];
+const BOTTOM = ["/app", "/app/monitor", "/app/rooms", "/app/notifications"];
 
 export function AppShell({ children }: { children: ReactNode }) {
   const path = (usePathname() ?? "").replace(/\/+$/, "") || "/";
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [ws] = useWorkspace(); const unread = unreadCount(ws);
   useEffect(() => { try { setCollapsed(localStorage.getItem("ss-nav") === "1"); } catch {} }, []);
   useEffect(() => setOpen(false), [path]);
   const isActive = (i: Item) => (i.exact ? path === i.href : path === i.href || path.startsWith(i.href + "/"));
@@ -29,10 +47,14 @@ export function AppShell({ children }: { children: ReactNode }) {
   const Nav = ({ onNav, compact }: { onNav?: () => void; compact?: boolean }) => (
     <nav aria-label="Main" className="flex flex-col gap-0.5">
       {ITEMS.map((i) => (
-        <Link key={i.href} href={i.href} onClick={onNav} aria-current={isActive(i) ? "page" : undefined} title={compact ? i.label : undefined}
-          className={`flex min-h-[44px] items-center gap-3 rounded-lg px-3 text-sm font-semibold transition-colors ${isActive(i) ? "bg-brand-soft text-brand" : "text-ink/80 hover:bg-raised"} ${compact ? "justify-center px-0" : ""}`}>
-          <i.icon className="h-[18px] w-[18px] shrink-0" aria-hidden /> {!compact && <span className="truncate">{i.label}</span>}
-        </Link>
+        <div key={i.href}>
+          {i.group && (compact ? <hr className="my-2 border-line" /> : <p className="mb-1 mt-3 px-3 text-[11px] font-semibold text-muted">{i.group}</p>)}
+          <Link href={i.href} onClick={onNav} aria-current={isActive(i) ? "page" : undefined} title={compact ? i.label : undefined}
+            className={`flex min-h-[44px] items-center gap-3 rounded-lg px-3 text-sm font-semibold transition-colors ${isActive(i) ? "bg-brand-soft text-brand" : "text-ink/80 hover:bg-raised"} ${compact ? "justify-center px-0" : ""}`}>
+            <i.icon className="h-[18px] w-[18px] shrink-0" aria-hidden /> {!compact && <span className="truncate">{i.label}</span>}
+            {i.href === "/app/notifications" && unread > 0 && <span className="ml-auto rounded-full bg-brand px-2 py-0.5 text-[11px] text-brand-ink" aria-label={`${unread} unread`}>{unread}</span>}
+          </Link>
+        </div>
       ))}
     </nav>
   );
@@ -74,7 +96,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <nav aria-label="Quick navigation" className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
         {ITEMS.filter((i) => BOTTOM.includes(i.href)).map((i) => (
           <Link key={i.href} href={i.href} aria-current={isActive(i) ? "page" : undefined} className={`flex min-h-[56px] flex-col items-center justify-center gap-0.5 text-[11px] font-semibold ${isActive(i) ? "text-brand" : "text-muted"}`}>
-            <i.icon className="h-5 w-5" aria-hidden />{i.label.split(" ")[0]}
+            <i.icon className="h-5 w-5" aria-hidden />{i.href === "/app/notifications" ? (unread ? `Alerts ${unread}` : "Alerts") : i.href === "/app/monitor" ? "Monitor" : i.label.split(" ")[0]}
           </Link>
         ))}
       </nav>

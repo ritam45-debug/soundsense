@@ -5,6 +5,23 @@ import { HBars } from "@/components/Charts";
 import { Badge, Empty, PageHeader, Spinner, Stat, statusLabel, statusTone } from "@/components/ui";
 import { assessmentHref, fmtDate, useApi } from "@/lib/client";
 import { CATEGORY_SHORT } from "@/lib/acoustics/types";
+import { SeverityBadge } from "@/components/ws";
+import { useWorkspace } from "@/lib/workspace/useWorkspace";
+import { dueSchedules, openAlerts } from "@/lib/workspace/ops";
+import { severityRank } from "@/lib/acoustics/screening";
+
+function WorkspaceSummary() {
+  const [w] = useWorkspace(); const open = openAlerts(w); const due = dueSchedules(w);
+  const top = open.reduce<typeof open[number] | null>((m, a) => (!m || severityRank(a.severity) > severityRank(m.severity) ? a : m), null);
+  return (
+    <section className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Monitoring summary">
+      <Stat label="Rooms" value={w.rooms.length} sub={<Link className="font-semibold text-brand" href="/app/rooms">{w.rooms.length ? "Manage rooms" : "Add your first room"}</Link>} />
+      <Stat label="Open alerts" value={open.length} sub={top ? <SeverityBadge s={top.severity} /> : "Nothing needs attention"} />
+      <Stat label="Reminders due" value={due.length} sub={due.length ? <Link className="font-semibold text-brand" href="/app/notifications">Review</Link> : "None"} />
+      <div className="card flex flex-col justify-between p-4"><p className="text-[13px] font-medium text-muted">Quick start</p><div className="mt-2 flex flex-wrap gap-2"><Link className="btn-primary btn-sm" href="/app/monitor">Monitor a room</Link><Link className="btn-secondary btn-sm" href="/app/readiness">Test my room</Link></div></div>
+    </section>
+  );
+}
 
 export default function Dashboard() {
   const { data } = useApi<any>("/api/assessments?limit=100");
@@ -25,6 +42,7 @@ export default function Dashboard() {
           <Link href={assessmentHref(draft.id)} className="btn-primary btn-sm">Continue</Link>
         </div>
       )}
+      <WorkspaceSummary />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
         <Stat label="Assessments" value={items.length} sub="Saved in this browser" />
         <Stat label="Diagnosed" value={done.length} sub="Submitted, with a diagnosis" />
