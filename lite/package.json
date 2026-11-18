@@ -2,7 +2,7 @@
   "name": "soundsense-lite",
   "version": "2.0.0",
   "private": true,
-  "description": "SoundSense Lite – the no-login, static, run-in-your-browser edition",
+  "description": "SoundSense Lite \u2013 the no-login, static, run-in-your-browser edition",
   "type": "module",
   "scripts": {
     "dev": "next dev",
@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "serve": "node scripts/serve.mjs",
     "test": "vitest run",
-    "test:e2e": "tsx e2e/run.ts"
+    "test:e2e": "tsx e2e/run.ts && tsx e2e/run2.ts",
+    "test:e2e:2": "tsx e2e/run2.ts"
   },
   "dependencies": {
     "@fontsource-variable/figtree": "^5.3.0",
