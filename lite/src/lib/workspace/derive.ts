@@ -30,6 +30,19 @@ export function healthInputFor(w: Workspace, room: Room, a: LocalAssessment | nu
   if (live && (!ambient || Date.parse(live.at) > ambient.at)) ambient = { at: Date.parse(live.at), splDb: live.value!, calibrated: live.basis === "calibrated" };
   if (ambient) inp.ambient = { splDb: ambient.splDb, calibrated: ambient.calibrated };
   const rd = w.readiness[room.id];
-  if (rd) { inp.readiness = { micFound: rd.micFound, speakerFound: rd.speakerFound, signal: rd.signal, clipping: rd.clipping, feedback: rd.feedback }; if (rd.echoReported) inp.problems = [...(inp.problems ?? []), "echo"]; }
+  if (rd) { inp.readiness = { micFound: rd.micFound, speakerFound: rd.speakerFound ?? undefined, signal: rd.signal, clipping: rd.clipping, feedback: rd.feedback }; if (rd.echoReported) inp.problems = [...(inp.problems ?? []), "echo"]; }
   return inp;
+}
+
+import type { Evidence } from "../acoustics/compare";
+/** All recordings that could be compared for a room, newest first. Levels are on the same estimated-dB scale (assumed offset) unless calibrated. */
+export function evidenceFor(w: Workspace, room: Room, a: LocalAssessment | null): Evidence[] {
+  const out: Evidence[] = []; const cfg = w.settings.screening;
+  for (const m of a?.measurements ?? []) {
+    if (m.kind !== "ambient" && m.kind !== "speech") continue;
+    const r = screenLevel(m.stats, m.calibration ?? { status: "uncalibrated" }, cfg);
+    out.push({ at: m.started_at, kind: m.kind, value: r.value, unit: "dB", basis: r.basis === "calibrated" ? "calibrated" : "estimate", device: m.device_note ?? null, durationS: m.duration_s ?? null, label: `${m.label || (m.kind === "ambient" ? "Room noise" : "Speech")} (assessment recording)` });
+  }
+  for (const r of w.readings) if (r.roomId === room.id && r.value !== null && (r.basis === "estimate" || r.basis === "calibrated") && r.source !== "readiness") out.push({ at: r.at, kind: "ambient", value: r.value, unit: "dB", basis: r.basis === "calibrated" ? "calibrated" : "estimate", device: null, durationS: null, label: "Live monitoring reading" });
+  return out.sort((x, y) => Date.parse(y.at) - Date.parse(x.at));
 }

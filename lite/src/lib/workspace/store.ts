@@ -35,7 +35,7 @@ export interface Workspace {
   /** Latest Meeting Readiness result per room id ("" = no room). */
   readiness: Record<string, ReadinessRecord>;
 }
-export interface ReadinessRecord { at: string; verdict: "ready" | "warnings" | "attention"; micFound: boolean; speakerFound: boolean; signal: boolean; clipping: boolean; feedback: boolean; noiseDb: number | null; noiseBasis: ReadingBasis; online: boolean | null; echoReported: boolean; findings: string[] }
+export interface ReadinessRecord { at: string; verdict: "ready" | "warnings" | "attention"; micFound: boolean; speakerFound: boolean | null; speakerHeard: boolean | null; signal: boolean; clipping: boolean; feedback: boolean; noiseDb: number | null; noiseBasis: ReadingBasis; online: boolean | null; slowLink: boolean | null; echoReported: boolean; findings: string[] }
 
 export const defaultSettings = (): Settings => ({ screening: { ...DEFAULT_SCREENING, bands: [...DEFAULT_SCREENING.bands] as ScreeningConfig["bands"], urgent: { ...DEFAULT_SCREENING.urgent } }, weights: {}, notify: { inApp: true, browser: false }, contacts: [], captionLang: "en-US" });
 export const emptyWs = (): Workspace => ({ v: 1, rooms: [], readings: [], alerts: [], notifications: [], snapshots: [], mitigationDone: {}, schedules: [], goals: [], maps: {}, audit: [], settings: defaultSettings(), consults: [], readiness: {} });

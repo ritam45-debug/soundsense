@@ -28,8 +28,22 @@ describe("health input derivation", () => {
   });
   it("includes the readiness result", () => {
     const w = emptyWs(); const r = addRoom(w, { name: "A" });
-    w.readiness[r.id] = { at: "x", verdict: "attention", micFound: false, speakerFound: true, signal: false, clipping: false, feedback: false, noiseDb: null, noiseBasis: "unavailable", online: true, echoReported: true, findings: [] };
+    w.readiness[r.id] = { at: "x", verdict: "attention", micFound: false, speakerFound: true, speakerHeard: null, signal: false, clipping: false, feedback: false, noiseDb: null, noiseBasis: "unavailable", online: true, slowLink: null, echoReported: true, findings: [] };
     const i = healthInputFor(w, r, null);
     expect(i.readiness?.micFound).toBe(false); expect(i.problems).toContain("echo");
+  });
+});
+
+import { evidenceFor } from "@/lib/workspace/derive";
+describe("evidence for comparison", () => {
+  it("lists assessment recordings and live readings on one scale, newest first, with honest basis", () => {
+    const w = emptyWs(); const r = addRoom(w, { name: "A" });
+    addReading(w, { roomId: r.id, source: "live", basis: "estimate", value: 55, label: "x", at: "2026-02-01T00:00:00Z" });
+    addReading(w, { roomId: r.id, source: "readiness", basis: "estimate", value: 99, label: "x" });
+    const ev = evidenceFor(w, r, asmt);
+    expect(ev.map((e) => e.label.split(" ")[0])).toEqual(["Live", "Speech", "Room"]);
+    expect(ev.find((e) => e.kind === "ambient" && e.label.startsWith("Room"))!.value).toBe(50);
+    expect(ev.every((e) => e.basis === "estimate" && e.unit === "dB")).toBe(true);
+    expect(ev.some((e) => e.value === 99)).toBe(false);
   });
 });
