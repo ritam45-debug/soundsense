@@ -32,10 +32,13 @@ export interface Workspace {
   mitigationDone: Record<string, Record<string, string>>;
   schedules: Schedule[]; goals: Goal[]; maps: Record<string, MapItem[]>; audit: AuditEntry[]; settings: Settings;
   consults: { id: string; at: string; roomId: string | null; supplierId: string | null; message: string }[];
+  /** Latest Meeting Readiness result per room id ("" = no room). */
+  readiness: Record<string, ReadinessRecord>;
 }
+export interface ReadinessRecord { at: string; verdict: "ready" | "warnings" | "attention"; micFound: boolean; speakerFound: boolean; signal: boolean; clipping: boolean; feedback: boolean; noiseDb: number | null; noiseBasis: ReadingBasis; online: boolean | null; echoReported: boolean; findings: string[] }
 
 export const defaultSettings = (): Settings => ({ screening: { ...DEFAULT_SCREENING, bands: [...DEFAULT_SCREENING.bands] as ScreeningConfig["bands"], urgent: { ...DEFAULT_SCREENING.urgent } }, weights: {}, notify: { inApp: true, browser: false }, contacts: [], captionLang: "en-US" });
-export const emptyWs = (): Workspace => ({ v: 1, rooms: [], readings: [], alerts: [], notifications: [], snapshots: [], mitigationDone: {}, schedules: [], goals: [], maps: {}, audit: [], settings: defaultSettings(), consults: [] });
+export const emptyWs = (): Workspace => ({ v: 1, rooms: [], readings: [], alerts: [], notifications: [], snapshots: [], mitigationDone: {}, schedules: [], goals: [], maps: {}, audit: [], settings: defaultSettings(), consults: [], readiness: {} });
 
 /** Fill in anything an older or partial save lacks, so new fields never crash old data. */
 export function normalise(raw: any): Workspace {
@@ -47,6 +50,7 @@ export function normalise(raw: any): Workspace {
     rooms: Array.isArray(raw.rooms) ? raw.rooms : [], readings: Array.isArray(raw.readings) ? raw.readings : [], alerts: Array.isArray(raw.alerts) ? raw.alerts : [],
     notifications: Array.isArray(raw.notifications) ? raw.notifications : [], snapshots: Array.isArray(raw.snapshots) ? raw.snapshots : [],
     schedules: Array.isArray(raw.schedules) ? raw.schedules : [], goals: Array.isArray(raw.goals) ? raw.goals : [], audit: Array.isArray(raw.audit) ? raw.audit : [], consults: Array.isArray(raw.consults) ? raw.consults : [],
+    readiness: raw.readiness && typeof raw.readiness === "object" ? raw.readiness : {},
     mitigationDone: raw.mitigationDone && typeof raw.mitigationDone === "object" ? raw.mitigationDone : {}, maps: raw.maps && typeof raw.maps === "object" ? raw.maps : {},
     settings: { ...base.settings, ...s, screening: { ...base.settings.screening, ...(s.screening ?? {}), urgent: { ...base.settings.screening.urgent, ...(s.screening?.urgent ?? {}) } }, notify: { ...base.settings.notify, ...(s.notify ?? {}) }, contacts: Array.isArray(s.contacts) ? s.contacts : [], weights: s.weights ?? {} },
   };
@@ -86,7 +90,7 @@ export function removeRoom(w: Workspace, id: string) {
   w.rooms = w.rooms.filter((x) => x.id !== id);
   w.readings = w.readings.filter((x) => x.roomId !== id); w.alerts = w.alerts.filter((x) => x.roomId !== id); w.notifications = w.notifications.filter((x) => x.roomId !== id);
   w.snapshots = w.snapshots.filter((x) => x.roomId !== id); w.schedules = w.schedules.filter((x) => x.roomId !== id); w.goals = w.goals.filter((x) => x.roomId !== id);
-  delete w.mitigationDone[id]; delete w.maps[id]; audit(w, `Room removed: ${r.name}`);
+  delete w.mitigationDone[id]; delete w.maps[id]; delete w.readiness[id]; audit(w, `Room removed: ${r.name}`);
 }
 
 /** Backup/restore for the workspace, attached to the existing Lite backup file as an optional `workspace` field. */
